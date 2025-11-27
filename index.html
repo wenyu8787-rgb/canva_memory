@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="zh-TW">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>翻翻樂記憶遊戲</title>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: 'Arial', 'Microsoft JhengHei', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .game-wrapper {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    .game-container {
+      background: white;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0 0 24px 0;
+      font-size: 42px;
+      font-weight: bold;
+    }
+
+    .game-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 12px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .info-label {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 48px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover:not(.flipped):not(.matched) {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .card:active:not(.flipped):not(.matched) {
+      transform: translateY(-2px);
+    }
+
+    .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: opacity 0.3s ease;
+      font-size: 36px;
+    }
+
+    .card-front {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: white;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .card.flipped .card-back,
+    .card.matched .card-back {
+      opacity: 0;
+    }
+
+    .card.flipped .card-front,
+    .card.matched .card-front {
+      opacity: 1;
+    }
+
+    .card.matched {
+      background: #4ade80;
+      cursor: default;
+      animation: match-pulse 0.5s ease;
+    }
+
+    @keyframes match-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .button-container {
+      margin-bottom: 16px;
+    }
+
+    .hint-button,
+    .restart-button {
+      flex: 1;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .hint-button:hover,
+    .restart-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .hint-button:active,
+    .restart-button:active {
+      transform: translateY(0);
+    }
+
+    .hint-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .hint-message {
+      text-align: center;
+      font-size: 16px;
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      display: none;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .hint-message.show {
+      display: block;
+    }
+
+    .win-message {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      padding: 20px;
+      border-radius: 12px;
+      display: none;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .win-message.show {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
+ </head>
+ <body>
+  <div class="game-wrapper">
+   <div class="game-container">
+    <h1 id="game-title">🎮 翻翻樂記憶遊戲</h1>
+    <div class="game-info">
+     <div class="info-item">
+      <div class="info-label" id="moves-label">
+       移動次數
+      </div>
+      <div class="info-value" id="moves">
+       0
+      </div>
+     </div>
+     <div class="info-item">
+      <div class="info-label" id="matches-label">
+       配對成功
+      </div>
+      <div class="info-value" id="matches">
+       0 / 8
+      </div>
+     </div>
+    </div>
+    <div class="win-message" id="win-message">
+     🎉 恭喜你完成遊戲!
+    </div>
+    <div class="game-board" id="game-board"></div>
+    <div class="button-container" style="display: flex; gap: 12px; margin-bottom: 0;"><button class="hint-button" id="hint-button">💡 提示</button> <button class="restart-button" id="restart-button">🔄 重新開始</button>
+    </div>
+    <div class="hint-message" id="hint-message"></div>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      background_color: '#667eea',
+      surface_color: '#ffffff',
+      text_color: '#1f2937',
+      primary_action_color: '#8b5cf6',
+      secondary_action_color: '#4ade80',
+      game_title: '🎮 翻翻樂記憶遊戲',
+      win_message: '🎉 恭喜你完成遊戲!',
+      restart_button_text: '🔄 重新開始',
+      hint_button_text: '💡 提示',
+      hint_used_message: '✨ 提示已使用',
+      font_family: 'Arial',
+      font_size: 16
+    };
+
+    let config = { ...defaultConfig };
+
+    const emojis = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'];
+    let cards = [...emojis, ...emojis];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let moves = 0;
+    let canFlip = true;
+    let hintsUsed = 0;
+    let hintInProgress = false;
+
+    function shuffleArray(array) {
+      const newArray = [...array];
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    }
+
+    function createBoard() {
+      const board = document.getElementById('game-board');
+      board.innerHTML = '';
+      const shuffledCards = shuffleArray(cards);
+      
+      shuffledCards.forEach((emoji, index) => {
+        const card = document.createElement('button');
+        card.className = 'card';
+        card.dataset.emoji = emoji;
+        card.dataset.index = index;
+        card.setAttribute('aria-label', '未翻開的卡片');
+        
+        const cardBack = document.createElement('div');
+        cardBack.className = 'card-back';
+        cardBack.textContent = '❓';
+        
+        const cardFront = document.createElement('div');
+        cardFront.className = 'card-front';
+        cardFront.textContent = emoji;
+        
+        card.appendChild(cardBack);
+        card.appendChild(cardFront);
+        
+        card.addEventListener('click', () => flipCard(card));
+        board.appendChild(card);
+      });
+    }
+
+    function flipCard(card) {
+      if (!canFlip || card.classList.contains('flipped') || card.classList.contains('matched')) {
+        return;
+      }
+
+      card.classList.add('flipped');
+      flippedCards.push(card);
+
+      if (flippedCards.length === 2) {
+        canFlip = false;
+        moves++;
+        document.getElementById('moves').textContent = moves;
+        checkMatch();
+      }
+    }
+
+    function checkMatch() {
+      const [card1, card2] = flippedCards;
+      const emoji1 = card1.dataset.emoji;
+      const emoji2 = card2.dataset.emoji;
+
+      if (emoji1 === emoji2) {
+        setTimeout(() => {
+          card1.classList.add('matched');
+          card2.classList.add('matched');
+          matchedPairs++;
+          document.getElementById('matches').textContent = `${matchedPairs} / 8`;
+          flippedCards = [];
+          canFlip = true;
+
+          if (matchedPairs === 8) {
+            setTimeout(() => {
+              document.getElementById('win-message').classList.add('show');
+            }, 500);
+          }
+        }, 500);
+      } else {
+        setTimeout(() => {
+          card1.classList.remove('flipped');
+          card2.classList.remove('flipped');
+          flippedCards = [];
+          canFlip = true;
+        }, 1000);
+      }
+    }
+
+    function showHint() {
+      if (hintInProgress) return;
+      
+      const allCards = Array.from(document.querySelectorAll('.card'));
+      const unmatchedCards = allCards.filter(card => !card.classList.contains('matched'));
+      
+      if (unmatchedCards.length === 0) return;
+      
+      hintInProgress = true;
+      const hintButton = document.getElementById('hint-button');
+      hintButton.disabled = true;
+      
+      // 找到第一對未配對的卡片
+      const cardMap = new Map();
+      for (const card of unmatchedCards) {
+        const emoji = card.dataset.emoji;
+        if (!cardMap.has(emoji)) {
+          cardMap.set(emoji, []);
+        }
+        cardMap.get(emoji).push(card);
+      }
+      
+      // 找到第一對
+      let pairToShow = null;
+      for (const [emoji, cards] of cardMap) {
+        if (cards.length === 2) {
+          pairToShow = cards;
+          break;
+        }
+      }
+      
+      if (pairToShow) {
+        // 短暫顯示這對卡片
+        pairToShow.forEach(card => card.classList.add('flipped'));
+        
+        hintsUsed++;
+        const hintMessage = document.getElementById('hint-message');
+        hintMessage.textContent = config.hint_used_message || defaultConfig.hint_used_message;
+        hintMessage.classList.add('show');
+        
+        setTimeout(() => {
+          pairToShow.forEach(card => card.classList.remove('flipped'));
+          hintMessage.classList.remove('show');
+          hintButton.disabled = false;
+          hintInProgress = false;
+        }, 1500);
+      } else {
+        hintButton.disabled = false;
+        hintInProgress = false;
+      }
+    }
+
+    function resetGame() {
+      flippedCards = [];
+      matchedPairs = 0;
+      moves = 0;
+      canFlip = true;
+      hintsUsed = 0;
+      hintInProgress = false;
+      document.getElementById('moves').textContent = '0';
+      document.getElementById('matches').textContent = '0 / 8';
+      document.getElementById('win-message').classList.remove('show');
+      document.getElementById('hint-message').classList.remove('show');
+      document.getElementById('hint-button').disabled = false;
+      createBoard();
+      applyConfig(config);
+    }
+
+    function applyConfig(newConfig) {
+      const baseSize = newConfig.font_size || defaultConfig.font_size;
+      const customFont = newConfig.font_family || defaultConfig.font_family;
+      const baseFontStack = 'Arial, Microsoft JhengHei, sans-serif';
+
+      document.querySelector('.game-wrapper').style.background = `linear-gradient(135deg, ${newConfig.background_color || defaultConfig.background_color} 0%, ${newConfig.primary_action_color || defaultConfig.primary_action_color} 100%)`;
+      
+      document.querySelector('.game-container').style.background = newConfig.surface_color || defaultConfig.surface_color;
+      
+      const title = document.getElementById('game-title');
+      title.textContent = newConfig.game_title || defaultConfig.game_title;
+      title.style.color = newConfig.text_color || defaultConfig.text_color;
+      title.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      title.style.fontSize = `${baseSize * 2.625}px`;
+
+      const winMessage = document.getElementById('win-message');
+      winMessage.textContent = newConfig.win_message || defaultConfig.win_message;
+      winMessage.style.color = newConfig.text_color || defaultConfig.text_color;
+      winMessage.style.background = newConfig.secondary_action_color || defaultConfig.secondary_action_color;
+      winMessage.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      winMessage.style.fontSize = `${baseSize * 1.75}px`;
+
+      const hintButton = document.getElementById('hint-button');
+      hintButton.textContent = newConfig.hint_button_text || defaultConfig.hint_button_text;
+      hintButton.style.background = newConfig.secondary_action_color || defaultConfig.secondary_action_color;
+      hintButton.style.color = newConfig.surface_color || defaultConfig.surface_color;
+      hintButton.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      hintButton.style.fontSize = `${baseSize * 1.125}px`;
+
+      const restartButton = document.getElementById('restart-button');
+      restartButton.textContent = newConfig.restart_button_text || defaultConfig.restart_button_text;
+      restartButton.style.background = newConfig.primary_action_color || defaultConfig.primary_action_color;
+      restartButton.style.color = newConfig.surface_color || defaultConfig.surface_color;
+      restartButton.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      restartButton.style.fontSize = `${baseSize * 1.125}px`;
+      
+      const hintMessage = document.getElementById('hint-message');
+      hintMessage.style.color = newConfig.text_color || defaultConfig.text_color;
+      hintMessage.style.background = `${newConfig.secondary_action_color || defaultConfig.secondary_action_color}33`;
+      hintMessage.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      hintMessage.style.fontSize = `${baseSize}px`;
+
+      document.querySelectorAll('.info-label').forEach(label => {
+        label.style.color = newConfig.text_color || defaultConfig.text_color;
+        label.style.fontFamily = `${customFont}, ${baseFontStack}`;
+        label.style.fontSize = `${baseSize * 0.875}px`;
+      });
+
+      document.querySelectorAll('.info-value').forEach(value => {
+        value.style.color = newConfig.primary_action_color || defaultConfig.primary_action_color;
+        value.style.fontFamily = `${customFont}, ${baseFontStack}`;
+        value.style.fontSize = `${baseSize * 1.75}px`;
+      });
+
+      document.querySelectorAll('.card').forEach(card => {
+        if (!card.classList.contains('matched')) {
+          card.style.background = `linear-gradient(135deg, ${newConfig.background_color || defaultConfig.background_color} 0%, ${newConfig.primary_action_color || defaultConfig.primary_action_color} 100%)`;
+          const cardBack = card.querySelector('.card-back');
+          if (cardBack) {
+            cardBack.style.background = `linear-gradient(135deg, ${newConfig.background_color || defaultConfig.background_color} 0%, ${newConfig.primary_action_color || defaultConfig.primary_action_color} 100%)`;
+          }
+        } else {
+          card.style.background = newConfig.secondary_action_color || defaultConfig.secondary_action_color;
+        }
+        const cardFront = card.querySelector('.card-front');
+        if (cardFront) {
+          cardFront.style.background = newConfig.surface_color || defaultConfig.surface_color;
+        }
+      });
+    }
+
+    async function onConfigChange(newConfig) {
+      config = { ...config, ...newConfig };
+      applyConfig(config);
+    }
+
+    document.getElementById('hint-button').addEventListener('click', showHint);
+    document.getElementById('restart-button').addEventListener('click', resetGame);
+
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities: (cfg) => ({
+          recolorables: [
+            {
+              get: () => cfg.background_color || defaultConfig.background_color,
+              set: (value) => {
+                cfg.background_color = value;
+                window.elementSdk.setConfig({ background_color: value });
+              }
+            },
+            {
+              get: () => cfg.surface_color || defaultConfig.surface_color,
+              set: (value) => {
+                cfg.surface_color = value;
+                window.elementSdk.setConfig({ surface_color: value });
+              }
+            },
+            {
+              get: () => cfg.text_color || defaultConfig.text_color,
+              set: (value) => {
+                cfg.text_color = value;
+                window.elementSdk.setConfig({ text_color: value });
+              }
+            },
+            {
+              get: () => cfg.primary_action_color || defaultConfig.primary_action_color,
+              set: (value) => {
+                cfg.primary_action_color = value;
+                window.elementSdk.setConfig({ primary_action_color: value });
+              }
+            },
+            {
+              get: () => cfg.secondary_action_color || defaultConfig.secondary_action_color,
+              set: (value) => {
+                cfg.secondary_action_color = value;
+                window.elementSdk.setConfig({ secondary_action_color: value });
+              }
+            }
+          ],
+          borderables: [],
+          fontEditable: {
+            get: () => cfg.font_family || defaultConfig.font_family,
+            set: (value) => {
+              cfg.font_family = value;
+              window.elementSdk.setConfig({ font_family: value });
+            }
+          },
+          fontSizeable: {
+            get: () => cfg.font_size || defaultConfig.font_size,
+            set: (value) => {
+              cfg.font_size = value;
+              window.elementSdk.setConfig({ font_size: value });
+            }
+          }
+        }),
+        mapToEditPanelValues: (cfg) => new Map([
+          ['game_title', cfg.game_title || defaultConfig.game_title],
+          ['win_message', cfg.win_message || defaultConfig.win_message],
+          ['restart_button_text', cfg.restart_button_text || defaultConfig.restart_button_text],
+          ['hint_button_text', cfg.hint_button_text || defaultConfig.hint_button_text],
+          ['hint_used_message', cfg.hint_used_message || defaultConfig.hint_used_message]
+        ])
+      });
+    }
+
+    createBoard();
+    applyConfig(config);
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9a503b05241f4a3c',t:'MTc2NDIzMTg4MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
